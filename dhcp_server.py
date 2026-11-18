@@ -25,7 +25,7 @@ def excepthook(exc_type, exc_value, exc_tb):
     msg = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
     try:
         ctypes.windll.user32.MessageBoxW(
-            0, f"Program crashed:\n{exc_value}", "IP Address Allocator - Error", 0x10)
+            0, f"程序发生错误：\n{exc_value}", "DHCP 地址分配工具 - 错误", 0x10)
     except Exception:
         pass
 sys.excepthook = excepthook
@@ -90,14 +90,14 @@ class DHCPApp(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle(f"IP Address Allocator - {VERSION}")
+        self.setWindowTitle(f"DHCP 地址分配工具 - {VERSION}")
         self.setMinimumWidth(420)
 
         layout = QVBoxLayout()
 
         # Network interface selection
         iface_layout = QHBoxLayout()
-        iface_layout.addWidget(QLabel("Interface:"))
+        iface_layout.addWidget(QLabel("网络接口："))
         self.iface_combo = QComboBox()
         self.iface_combo.setMinimumWidth(240)
         iface_list = get_interface_list()
@@ -113,7 +113,7 @@ class DHCPApp(QWidget):
 
         # IP address to assign
         ip_layout = QHBoxLayout()
-        ip_layout.addWidget(QLabel("Assign IP:"))
+        ip_layout.addWidget(QLabel("分配 IP："))
         self.ip_edit = QLineEdit(DEFAULT_OFFERED_IP)
         self.ip_edit.setMinimumWidth(120)
         ip_layout.addWidget(self.ip_edit)
@@ -123,9 +123,9 @@ class DHCPApp(QWidget):
 
         # Buttons
         btn_layout = QHBoxLayout()
-        self.start_btn = QPushButton("Start")
+        self.start_btn = QPushButton("开始")
         self.start_btn.clicked.connect(self.start_server)
-        self.stop_btn = QPushButton("Stop")
+        self.stop_btn = QPushButton("停止")
         self.stop_btn.clicked.connect(self.stop_server)
         self.stop_btn.setEnabled(False)
         btn_layout.addWidget(self.start_btn)
@@ -133,7 +133,7 @@ class DHCPApp(QWidget):
         layout.addLayout(btn_layout)
 
         # Log area
-        layout.addWidget(QLabel("Log:"))
+        layout.addWidget(QLabel("运行日志："))
         self.log_area = QTextEdit()
         self.log_area.setReadOnly(True)
         self.log_area.setMaximumHeight(200)
@@ -204,7 +204,7 @@ class DHCPApp(QWidget):
                        ("end")
                    ]))
             self._queue_packet(ack)
-            self._log(f"Assigned: MAC={client_mac} -> IP={self.offered_ip}")
+            self._log(f"已分配：MAC={client_mac} -> IP={self.offered_ip}")
         except Exception:
             pass
 
@@ -228,14 +228,14 @@ class DHCPApp(QWidget):
         display = self.iface_combo.currentText()
         iface = self._iface_map.get(display)
         if not iface:
-            self._log("Please select a network interface first.")
+            self._log("请先选择网络接口。")
             return
         self._selected_iface = iface
         self.net_iface = iface
         self.server_ip = iface.ip
         self.server_mac = iface.mac or get_mac_from_ipconfig(iface.ip)
         if not self.server_mac:
-            self._log(f"Cannot get the MAC address of interface [{iface.name}]")
+            self._log(f"无法获取网络接口 [{iface.name}] 的 MAC 地址。")
             return
         self.offered_ip = self.ip_edit.text().strip() or DEFAULT_OFFERED_IP
 
@@ -254,7 +254,7 @@ class DHCPApp(QWidget):
         self._sender_stop.clear()
         self._sender_thread = threading.Thread(target=self._sender_loop, daemon=True)
         self._sender_thread.start()
-        self._log(f"Started on {iface.name} ({self.server_ip}), offering {self.offered_ip}")
+        self._log(f"已在 {iface.name}（{self.server_ip}）启动，分配地址：{self.offered_ip}")
 
     def _sniff_loop(self):
         """Background sniff loop: check the stop flag every 0.5 s so Stop
@@ -290,7 +290,7 @@ class DHCPApp(QWidget):
         self.stop_btn.setEnabled(False)
         self.iface_combo.setEnabled(True)
         self.ip_edit.setEnabled(True)
-        self._log("Stopped.")
+        self._log("已停止。")
 
     def _sender_loop(self):
         while not self._sender_stop.is_set():
