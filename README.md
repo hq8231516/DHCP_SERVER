@@ -23,7 +23,7 @@
 | --- | --- |
 | 操作系统 | Windows 10 / 11，64 位 |
 | Npcap | Scapy 捕获报文和发送原始以太网帧所必需。请安装 [Npcap](https://npcap.com/)，并启用与 WinPcap 兼容的 API 模式。 |
-| 权限 | **管理员权限** - 可执行程序启动时会请求提升权限。 |
+| 权限 | 普通用户权限即可运行，不弹出 UAC 提示。若 Npcap 安装时启用了"仅管理员可访问驱动"（`AdminOnly=1`），则需右键选择"以管理员身份运行"。 |
 | 网络 | 所选网卡需要配置与待分配 IP 地址位于同一子网的静态 IPv4 地址；该网段不应同时运行其他 DHCP 服务器。 |
 | 防火墙 | 不得阻止 UDP 端口 67 / 68。 |
 
@@ -32,7 +32,7 @@
 
 ## 使用方法
 
-1. 运行 `DHCP_Server_V1.00.exe`（接受 UAC 权限提升提示）。
+1. 运行 `DHCP_Server_V1.00.exe`（无需 UAC 提权；若本机 Npcap 限制了管理员访问，请右键"以管理员身份运行"）。
 2. 选择连接到待测设备的**网络接口**。
 3. 在**分配 IP**中设置要分配的地址（默认值为 `192.168.1.20`）。
 4. 点击**开始**。日志会显示类似 `已在 <接口>（<服务器 IP>）启动，分配地址：<IP>` 的信息。
@@ -56,7 +56,7 @@
 ```bash
 pip install scapy==2.7.0 PyQt5==5.15.2 pyinstaller==6.19.0
 
-python -m PyInstaller --noconfirm --clean --onefile --windowed --uac-admin ^
+python -m PyInstaller --noconfirm --clean --onefile --windowed ^
   --name DHCP_Server_V1.00 --collect-all scapy dhcp_server.py
 ```
 
@@ -64,11 +64,11 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --uac-admin ^
 
 ## 故障排除
 
-- **网络接口列表为空** - 请安装 Npcap、以管理员身份运行程序，并确认网卡具有有效的 IPv4 地址（不是 APIPA 地址或回环地址）。
+- **网络接口列表为空** - 请确认已安装 Npcap、网卡具有有效的 IPv4 地址（不是 APIPA 地址或回环地址）；若 Npcap 启用了管理员访问限制，请右键"以管理员身份运行"。
 - **无法获取网络接口的 MAC 地址** - 请通过 `ipconfig /all` 检查网卡，并尝试选择其他接口。
 - **客户端未获取到 IP 地址** - 检查网线和链路、子网、本机防火墙是否放行 UDP 端口 67 / 68，以及同一网段是否存在其他 DHCP 服务器。
 - **杀毒软件提示可执行文件存在风险** - PyInstaller 单文件程序常会被误报。如需验证，可从源代码自行构建。
-- **每次启动都会出现 UAC 提示** - 这是预期行为；原始报文捕获需要提升权限。
+- **普通权限下无法抓包或发送报文** - 本机 Npcap 可能启用了"Restrict Npcap driver's access to Administrators only"。右键以管理员身份运行即可；也可重新安装 Npcap 并保持该选项不勾选（默认状态）。
 
 ## 文件
 
