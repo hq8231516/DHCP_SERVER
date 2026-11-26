@@ -1,8 +1,8 @@
-# IP 地址分配器（DHCP 服务器）- V1.00
+# IP 地址分配器（DHCP 服务器）- V1.01
 
 一款轻量级 Windows 图形界面工具，可监听所选网络接口上的 DHCP 报文，并使用一个固定 IP 地址（默认 `192.168.1.20`）响应 DHCP **Discover / Request** 请求。程序使用 Python、**Scapy** 和 **PyQt5** 编写，可打包为单文件可执行程序。
 
-版本：**V1.00**（首个公开版本）
+版本：**V1.01**（广播回应版；首个公开版本为 V1.00）
 
 ## 功能
 
@@ -15,7 +15,7 @@
 
 ## 下载
 
-请从 [GitHub Releases](https://github.com/hq8231516/DHCP_SERVER/releases/tag/V1.00) 页面下载 `DHCP_Server_V1.00.exe`。仓库仅包含源代码和文档。
+请从 [GitHub Releases](https://github.com/hq8231516/DHCP_SERVER/releases/tag/V1.01) 页面下载 `DHCP_Server_V1.01.exe`。仓库仅包含源代码和文档。
 
 ## 运行要求
 
@@ -32,7 +32,7 @@
 
 ## 使用方法
 
-1. 运行 `DHCP_Server_V1.00.exe`（无需 UAC 提权；若本机 Npcap 限制了管理员访问，请右键"以管理员身份运行"）。
+1. 运行 `DHCP_Server_V1.01.exe`（无需 UAC 提权；若本机 Npcap 限制了管理员访问，请右键"以管理员身份运行"）。
 2. 选择连接到待测设备的**网络接口**。
 3. 在**分配 IP**中设置要分配的地址（默认值为 `192.168.1.20`）。
 4. 点击**开始**。日志会显示类似 `已在 <接口>（<服务器 IP>）启动，分配地址：<IP>` 的信息。
@@ -59,7 +59,7 @@
 pip install scapy==2.7.0 PyQt5==5.15.2 pyinstaller==6.19.0
 
 python -m PyInstaller --noconfirm --clean --onefile --windowed ^
-  --name DHCP_Server_V1.00 --collect-all scapy dhcp_server.py
+  --name DHCP_Server_V1.01 --collect-all scapy dhcp_server.py
 ```
 
 可执行程序将生成在 `dist/` 目录中。程序不会捆绑 Npcap，目标计算机必须自行安装。
@@ -76,7 +76,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed ^
 
 | 文件 | 说明 |
 | --- | --- |
-| `dhcp_server.py` | 应用程序源代码（简体中文界面，V1.00） |
+| `dhcp_server.py` | 应用程序源代码（简体中文界面，V1.01） |
 | `DHCP.pcapng` | DHCP SERVER 2.52 参考抓包（Discover×5 / Offer / Request / ACK） |
 | `regression_check.py` | 基于参考抓包的报文回归对比脚本 |
 | `README.md` | 本文档 |

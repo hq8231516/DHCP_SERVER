@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DHCP IP Allocator V1.00 - select a network interface, then answer DHCP
+"""DHCP IP Allocator V1.01 - select a network interface, then answer DHCP
 Discover/Request packets with one fixed IP address (default 192.168.1.20).
 """
 import sys
@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QTimer
 
-VERSION = "V1.00"
+VERSION = "V1.01"
 
 # ---- Global exception hook ----
 def excepthook(exc_type, exc_value, exc_tb):
