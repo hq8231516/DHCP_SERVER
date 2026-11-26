@@ -46,10 +46,12 @@
   |--- DHCP Discover --->|
   |<---- DHCP Offer -----|  yiaddr = 配置的 IP，server_id = 网卡 IP
   |--- DHCP Request ---->|
-  |<----- DHCP ACK ------|  租约 12 小时，掩码 255.255.255.0，路由器 = 网卡 IP
+  |<----- DHCP ACK ------|  租约 1 天，掩码 255.255.255.0，路由器 = 0.0.0.0
 ```
 
-程序通过 `sniff(filter="udp and (port 67 or port 68)")` 捕获报文，并使用 `sendp()` 在二层发送构造的响应报文，源 MAC 地址为所选网络接口的 MAC 地址。专用的发送线程负责处理发送队列，避免阻塞报文捕获回调。
+程序通过 `sniff(filter="udp and (port 67 or port 68)")` 捕获报文，并使用 `sendp()` 在二层发送构造的响应报文。Offer / ACK 采用二层 + 三层广播（目的 MAC `ff:ff:ff:ff:ff:ff`，目的 IP `255.255.255.255`）并回显客户端的 BOOTP 广播标志，以便尚未获得 IP 的客户端（如嵌入式设备）能够接收。报文字段与 DHCP SERVER 2.52 的参考抓包对齐，租约 1 天、NetBIOS 节点类型 H-node（8）。专用的发送线程负责处理发送队列，避免阻塞报文捕获回调。
+
+回归对比：仓库根目录的 `DHCP.pcapng` 是参考抓包，运行 `python regression_check.py` 可将本程序生成的 Offer / ACK 与抓包中的真实响应逐字段比对（应全部为 PASS）。
 
 ## 从源代码构建
 
@@ -75,6 +77,8 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed ^
 | 文件 | 说明 |
 | --- | --- |
 | `dhcp_server.py` | 应用程序源代码（简体中文界面，V1.00） |
+| `DHCP.pcapng` | DHCP SERVER 2.52 参考抓包（Discover×5 / Offer / Request / ACK） |
+| `regression_check.py` | 基于参考抓包的报文回归对比脚本 |
 | `README.md` | 本文档 |
 | `.gitignore` | 排除构建产物和本地状态文件 |
 

@@ -31,9 +31,42 @@ def excepthook(exc_type, exc_value, exc_tb):
 sys.excepthook = excepthook
 threading.excepthook = lambda args: excepthook(args.exc_type, args.exc_value, args.exc_traceback)
 
-# DHCP defaults
+# DHCP defaults (aligned with the reference DHCP SERVER 2.52 capture)
 DEFAULT_OFFERED_IP = "192.168.1.20"
-LEASE_TIME = 43200  # 12 hours
+LEASE_TIME = 86400       # 1 day, as in the reference capture
+ROUTER_IP = "0.0.0.0"    # reference server advertises no default gateway
+NETBIOS_NODE_TYPE = 8    # H-node
+BROADCAST_MAC = "ff:ff:ff:ff:ff:ff"
+BROADCAST_IP = "255.255.255.255"
+
+
+def build_reply(pkt, msg_type, server_ip, server_mac, offered_ip):
+    """Build a DHCP Offer/ACK from a client packet.
+
+    Pure function (no I/O, no globals) so it can be regression-tested against
+    a captured exchange. The reference server answers with L2/L3 broadcast and
+    echoes the client's BOOTP broadcast flag, which is required for clients
+    that have no IP address yet.
+    """
+    bootp = pkt[BOOTP]
+    return (
+        Ether(src=server_mac, dst=BROADCAST_MAC) /
+        IP(src=server_ip, dst=BROADCAST_IP) /
+        UDP(sport=67, dport=68) /
+        BOOTP(op=2, htype=bootp.htype, hlen=bootp.hlen, hops=bootp.hops,
+              xid=bootp.xid, secs=0, flags=int(bootp.flags),
+              ciaddr=bootp.ciaddr, yiaddr=offered_ip,
+              siaddr=server_ip, giaddr=bootp.giaddr, chaddr=bootp.chaddr) /
+        DHCP(options=[
+            ("message-type", msg_type),
+            ("subnet_mask", "255.255.255.0"),
+            ("router", ROUTER_IP),
+            ("NetBIOS_node_type", NETBIOS_NODE_TYPE),
+            ("lease_time", LEASE_TIME),
+            ("server_id", server_ip),
+            ("end")
+        ])
+    )
 
 
 def get_interface_list():
@@ -158,23 +191,11 @@ class DHCPApp(QWidget):
         try:
             if not (DHCP in pkt and pkt[DHCP].options and pkt[DHCP].options[0][1] == 1):
                 return
-            client_mac = pkt[Ether].src
+            client_mac = pkt[BOOTP].chaddr[:6].hex(":")
             if self.server_mac and client_mac.upper() == self.server_mac.upper():
                 return
-            offer = (Ether(src=self.server_mac, dst=client_mac) /
-                     IP(src=self.server_ip, dst=self.offered_ip) /
-                     UDP(sport=67, dport=68) /
-                     BOOTP(op=2, chaddr=pkt[BOOTP].chaddr, yiaddr=self.offered_ip,
-                           siaddr=self.server_ip, xid=pkt[BOOTP].xid, secs=pkt[BOOTP].secs) /
-                     DHCP(options=[
-                         ("message-type", "offer"),
-                         ("server_id", self.server_ip),
-                         ("lease_time", LEASE_TIME),
-                         ("subnet_mask", "255.255.255.0"),
-                         ("router", self.server_ip),
-                         ("end")
-                     ]))
-            self._queue_packet(offer)
+            self._queue_packet(build_reply(
+                pkt, "offer", self.server_ip, self.server_mac, self.offered_ip))
         except Exception:
             pass
 
@@ -189,21 +210,9 @@ class DHCPApp(QWidget):
                     break
             if server_id != self.server_ip:
                 return
-            client_mac = pkt[Ether].src
-            ack = (Ether(src=self.server_mac, dst=client_mac) /
-                   IP(src=self.server_ip, dst=self.offered_ip) /
-                   UDP(sport=67, dport=68) /
-                   BOOTP(op=2, chaddr=pkt[BOOTP].chaddr, yiaddr=self.offered_ip,
-                         siaddr=self.server_ip, xid=pkt[BOOTP].xid, secs=pkt[BOOTP].secs) /
-                   DHCP(options=[
-                       ("message-type", "ack"),
-                       ("server_id", self.server_ip),
-                       ("lease_time", LEASE_TIME),
-                       ("subnet_mask", "255.255.255.0"),
-                       ("router", self.server_ip),
-                       ("end")
-                   ]))
-            self._queue_packet(ack)
+            client_mac = pkt[BOOTP].chaddr[:6].hex(":")
+            self._queue_packet(build_reply(
+                pkt, "ack", self.server_ip, self.server_mac, self.offered_ip))
             self._log(f"已分配：MAC={client_mac} -> IP={self.offered_ip}")
         except Exception:
             pass
