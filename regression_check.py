@@ -16,7 +16,7 @@ from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dhcp_server import build_reply  # noqa: E402
+from dhcp_server import BROADCAST_IP, BROADCAST_MAC, build_reply  # noqa: E402
 
 PCAP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DHCP.pcapng")
 
@@ -84,6 +84,39 @@ def find_type(pkts, t):
     return [p for p in pkts if msg_type(p) == t]
 
 
+def check_flag_branches(discover):
+    """RFC 2131: broadcast flag set -> broadcast reply, cleared -> unicast."""
+    client_mac = bytes(discover[BOOTP].chaddr)[:6].hex(":")
+    ok_all = True
+
+    # The captured client sets 0x8000, so the reference path is broadcast.
+    broadcast = build_reply(discover, "offer", REF_SERVER_IP,
+                            REF_SERVER_MAC, REF_OFFERED_IP)
+    expected = [(Ether, "dst", BROADCAST_MAC), (IP, "dst", BROADCAST_IP)]
+    print("\n=== RFC broadcast-flag: 0x8000 (broadcast) ===")
+    for layer, name, want in expected:
+        got = getattr(broadcast[layer], name)
+        ok = got == want
+        ok_all = ok_all and ok
+        print(f"  [{'PASS' if ok else 'FAIL'}] {layer.__name__}.{name:4s} got={got} want={want}")
+
+    # Clear the flag: reply must be unicast to chaddr / yiaddr.
+    unicast_request = discover.copy()
+    unicast_request[BOOTP].flags = 0
+    unicast = build_reply(unicast_request, "offer", REF_SERVER_IP,
+                          REF_SERVER_MAC, REF_OFFERED_IP)
+    expected = [(Ether, "dst", client_mac), (IP, "dst", REF_OFFERED_IP),
+                (BOOTP, "flags", 0)]
+    print("\n=== RFC broadcast-flag: 0x0000 (unicast) ===")
+    for layer, name, want in expected:
+        got = getattr(unicast[layer], name)
+        ok = got == want
+        ok_all = ok_all and ok
+        print(f"  [{'PASS' if ok else 'FAIL'}] {layer.__name__}.{name:4s} "
+              f"got={got if name != 'flags' else int(got)} want={want}")
+    return ok_all
+
+
 def main():
     if not os.path.exists(PCAP):
         print("找不到抓包文件:", PCAP)
@@ -107,12 +140,14 @@ def main():
 
     ok1 = compare("Offer: our build_reply vs reference #6", our_offer, ref_offer)
     ok2 = compare("ACK:   our build_reply vs reference #8", our_ack, ref_ack)
+    ok3 = check_flag_branches(discover)
 
     print("\n=== summary ===")
-    print(f"  Offer: {'PASS' if ok1 else 'FAIL'} | ACK: {'PASS' if ok2 else 'FAIL'}")
+    print(f"  Offer: {'PASS' if ok1 else 'FAIL'} | ACK: {'PASS' if ok2 else 'FAIL'} "
+          f"| 广播标志分支: {'PASS' if ok3 else 'FAIL'}")
     print(f"  参考报文: {len(pkts)} 帧 | Discover×{len(discovers)} "
           f"Offer×{len(offers)} Request×{len(requests)} ACK×{len(acks)}")
-    return 0 if (ok1 and ok2) else 1
+    return 0 if (ok1 and ok2 and ok3) else 1
 
 
 if __name__ == "__main__":

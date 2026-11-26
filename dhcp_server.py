@@ -44,14 +44,18 @@ def build_reply(pkt, msg_type, server_ip, server_mac, offered_ip):
     """Build a DHCP Offer/ACK from a client packet.
 
     Pure function (no I/O, no globals) so it can be regression-tested against
-    a captured exchange. The reference server answers with L2/L3 broadcast and
-    echoes the client's BOOTP broadcast flag, which is required for clients
-    that have no IP address yet.
+    a captured exchange. RFC 2131 section 4.3.1 / Table 3: when the client's
+    BOOTP broadcast flag (0x8000) is set, the reply goes to L2/L3 broadcast;
+    otherwise it is unicast to the client hardware address and yiaddr. The
+    flag itself is echoed back in the reply, as the reference server does.
     """
     bootp = pkt[BOOTP]
+    broadcast = int(bootp.flags) & 0x8000
+    dst_mac = BROADCAST_MAC if broadcast else bootp.chaddr[:6].hex(":")
+    dst_ip = BROADCAST_IP if broadcast else offered_ip
     return (
-        Ether(src=server_mac, dst=BROADCAST_MAC) /
-        IP(src=server_ip, dst=BROADCAST_IP) /
+        Ether(src=server_mac, dst=dst_mac) /
+        IP(src=server_ip, dst=dst_ip) /
         UDP(sport=67, dport=68) /
         BOOTP(op=2, htype=bootp.htype, hlen=bootp.hlen, hops=bootp.hops,
               xid=bootp.xid, secs=0, flags=int(bootp.flags),
